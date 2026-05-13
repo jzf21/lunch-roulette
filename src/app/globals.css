@@ -1,26 +1,110 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  background: #FFF1C6;
+  color: #1A1410;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-image:
+    radial-gradient(rgba(26,20,16,0.10) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+  background-position: 0 0;
+  min-height: 100vh;
+}
+
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+h1, h2, h3, h4 { margin: 0; }
+
+::selection { background: #1A1410; color: #FFF1C6; }
+
+.nb-shadow { box-shadow: 6px 6px 0 #1A1410; }
+.nb-shadow-sm { box-shadow: 3px 3px 0 #1A1410; }
+.nb-shadow-lg { box-shadow: 10px 10px 0 #1A1410; }
+
+.nb-card {
+  border: 2.5px solid #1A1410;
+  background: #FFFAEC;
+  box-shadow: 6px 6px 0 #1A1410;
+  transition: transform 0.15s cubic-bezier(.3,1.4,.5,1), box-shadow 0.15s;
+}
+.nb-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 10px 10px 0 #1A1410;
+}
+
+.nb-btn {
+  appearance: none;
+  border: 2.5px solid #1A1410;
+  background: #FF4D2E;
+  color: #FFF1C6;
+  padding: 12px 20px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  box-shadow: 4px 4px 0 #1A1410;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.nb-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 #1A1410; }
+.nb-btn:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 #1A1410; }
+
+.wavy {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 8' preserveAspectRatio='none'><path d='M0 4 Q 7.5 0 15 4 T 30 4 T 45 4 T 60 4' fill='none' stroke='%23FF4D2E' stroke-width='3' stroke-linecap='round'/></svg>");
+  background-repeat: repeat-x;
+  background-position: bottom 2px left;
+  background-size: 60px 8px;
+  padding-bottom: 12px;
+}
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: #FFF1C6; }
+::-webkit-scrollbar-thumb { background: #1A1410; border: 2px solid #FFF1C6; }
+
+input[type="range"] { accent-color: #FF4D2E; }
+
+@keyframes wobble {
+  0%, 100% { transform: rotate(-1deg); }
+  50% { transform: rotate(1.5deg); }
+}
+@keyframes pop-in {
+  0% { transform: scale(0.5) rotate(-15deg); opacity: 0; }
+  70% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(var(--final-rot, 0deg)); }
+}
+@keyframes spin-burst {
+  0% { transform: rotate(0deg) scale(1); }
+  100% { transform: rotate(1080deg) scale(1); }
+}
+@keyframes wheel-spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(2160deg); }
+}
+@keyframes overlay-in {
+  0%   { opacity: 0; backdrop-filter: blur(0px); }
+  100% { opacity: 1; backdrop-filter: blur(2px); }
+}
+@keyframes sticker-pop {
+  0%   { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  60%  { transform: scale(1.15) rotate(3deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-2deg); }
+}
+@keyframes ticker-shake {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50%      { transform: translateY(-2px) rotate(1.5deg); }
+}
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50%      { transform: scale(1.06); opacity: 0.5; }
+}
+@keyframes pointer-tap {
+  0%, 100% { transform: translateX(-50%) rotate(0deg); }
+  50%      { transform: translateX(-50%) rotate(-12deg); }
+}
+@keyframes confetti-fall {
+  0%   { transform: translate(var(--x, 0), -40px) rotate(0deg); opacity: 1; }
+  100% { transform: translate(var(--x, 0), 60vh) rotate(540deg); opacity: 0; }
 }
