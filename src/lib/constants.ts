@@ -32,14 +32,7 @@ export const ALL_CUISINES = [
   "Continental", "Bakery", "Seafood", "Breakfast", "Multi",
 ];
 
-export const TEAM = [
-  { initials: "AR", name: "Aravind" },
-  { initials: "SP", name: "Sneha" },
-  { initials: "NK", name: "Nikhil" },
-  { initials: "MV", name: "Meera" },
-  { initials: "RJ", name: "Rohit" },
-  { initials: "DK", name: "Divya" },
-];
+export const TEAM: { initials: string; name: string }[] = [];
 
 export const FONT_DISPLAY = "var(--font-caprasimo), var(--font-dm-serif), serif";
 export const FONT_MONO = "var(--font-jetbrains-mono), ui-monospace, monospace";
