@@ -15,11 +15,11 @@ export function AddModal({
   onAdd: (spot: Spot) => void;
 }) {
   const [form, setForm] = React.useState({
-    name: "", cuisine: "", area: "", walk: 10, price: 2, by: "AR", notes: "",
+    name: "", cuisine: "", area: "", walk: 10, price: 2, by: "", notes: "",
   });
 
   React.useEffect(() => {
-    if (!open) setForm({ name: "", cuisine: "", area: "", walk: 10, price: 2, by: "AR", notes: "" });
+    if (!open) setForm({ name: "", cuisine: "", area: "", walk: 10, price: 2, by: "", notes: "" });
   }, [open]);
 
   if (!open) return null;
