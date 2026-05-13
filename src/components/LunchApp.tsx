@@ -139,7 +139,7 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
     <header
       style={{
         position: "relative",
-        padding: "32px 32px 28px",
+        padding: "38px 32px 28px",
         display: "flex",
         flexWrap: "wrap",
         alignItems: "flex-end",
@@ -175,7 +175,7 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
             lineHeight: 0.92,
             letterSpacing: "-0.025em",
             color: INK,
-            animation: wobble ? "wobble 6s ease-in-out infinite" : "none",
+            animation: wobble ? "none" : "none",
             transformOrigin: "left bottom",
             display: "inline-block",
           }}
@@ -195,7 +195,7 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
         </h1>
         <p
           style={{
-            margin: "16px 0 0",
+            margin: "28px 0 0",
             fontSize: 15,
             color: INK,
             opacity: 0.72,
@@ -714,8 +714,17 @@ export default function LunchApp() {
   const [nearbyCuisine, setNearbyCuisine] = React.useState("");
   const [nearbyVeg, setNearbyVeg] = React.useState(false);
 
+  // Debounce cuisine filter to avoid firing on every keystroke
+  const [debouncedCuisine, setDebouncedCuisine] = React.useState(nearbyCuisine);
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedCuisine(nearbyCuisine), 350);
+    return () => clearTimeout(id);
+  }, [nearbyCuisine]);
+
   // Fetch nearby restaurants when location resolves or filters change
   React.useEffect(() => {
+    if (picker !== "nearby") return;
+
     const controller = new AbortController();
     setNearbyLoading(true);
 
@@ -725,7 +734,7 @@ export default function LunchApp() {
       radius: String(nearbyRadius),
       limit: "50",
     });
-    if (nearbyCuisine) params.set("cuisine", nearbyCuisine);
+    if (debouncedCuisine) params.set("cuisine", debouncedCuisine);
     if (nearbyVeg) params.set("veg", "1");
 
     fetch(`/api/restaurants?${params}`, { signal: controller.signal })
@@ -741,7 +750,7 @@ export default function LunchApp() {
       .finally(() => setNearbyLoading(false));
 
     return () => controller.abort();
-  }, [userLocation.lat, userLocation.lng, nearbyRadius, nearbyCuisine, nearbyVeg]);
+  }, [picker, userLocation.lat, userLocation.lng, nearbyRadius, debouncedCuisine, nearbyVeg]);
 
   const onVote = (id: string) => {
     setVoted((s) => {
