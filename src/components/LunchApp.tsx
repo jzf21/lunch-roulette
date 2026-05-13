@@ -722,9 +722,12 @@ export default function LunchApp() {
   }, [nearbyCuisine]);
 
   // Fetch nearby restaurants when location resolves or filters change
-  React.useEffect(() => {
-    if (picker !== "nearby") return;
+  // Always fetch so nearby spots are available across all tabs (vote, spin, filter use allSpots).
+  // Cuisine/veg filters only apply when the Nearby tab is active.
+  const applyCuisine = picker === "nearby" ? debouncedCuisine : "";
+  const applyVeg = picker === "nearby" ? nearbyVeg : false;
 
+  React.useEffect(() => {
     const controller = new AbortController();
     setNearbyLoading(true);
 
@@ -734,8 +737,8 @@ export default function LunchApp() {
       radius: String(nearbyRadius),
       limit: "50",
     });
-    if (debouncedCuisine) params.set("cuisine", debouncedCuisine);
-    if (nearbyVeg) params.set("veg", "1");
+    if (applyCuisine) params.set("cuisine", applyCuisine);
+    if (applyVeg) params.set("veg", "1");
 
     fetch(`/api/restaurants?${params}`, { signal: controller.signal })
       .then((res) => res.json())
@@ -750,7 +753,7 @@ export default function LunchApp() {
       .finally(() => setNearbyLoading(false));
 
     return () => controller.abort();
-  }, [picker, userLocation.lat, userLocation.lng, nearbyRadius, debouncedCuisine, nearbyVeg]);
+  }, [userLocation.lat, userLocation.lng, nearbyRadius, applyCuisine, applyVeg]);
 
   const onVote = (id: string) => {
     setVoted((s) => {
