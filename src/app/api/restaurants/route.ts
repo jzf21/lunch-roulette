@@ -27,8 +27,10 @@ export async function GET(request: Request) {
     };
 
     if (cuisine && cuisine !== "all") {
-      conditions.push("hasAny(cuisine, {cuisine:Array(String)})");
-      params.cuisine = [cuisine];
+      conditions.push(
+        "arrayExists(c -> positionCaseInsensitive(c, {cuisine:String}) > 0, cuisine)"
+      );
+      params.cuisine = cuisine;
     }
     if (vegOnly) {
       conditions.push("diet_vegetarian = 1");
