@@ -9,18 +9,21 @@ export function AddModal({
   open,
   onClose,
   onAdd,
+  memberName,
 }: {
   open: boolean;
   onClose: () => void;
   onAdd: (spot: Spot) => void;
+  memberName?: string;
 }) {
+  const initials = memberName ? memberName.slice(0, 2).toUpperCase() : "";
   const [form, setForm] = React.useState({
-    name: "", cuisine: "", area: "", walk: 10, price: 2, by: "", notes: "",
+    name: "", cuisine: "", area: "", walk: 10, price: 2, by: initials, notes: "",
   });
 
   React.useEffect(() => {
-    if (!open) setForm({ name: "", cuisine: "", area: "", walk: 10, price: 2, by: "", notes: "" });
-  }, [open]);
+    if (!open) setForm({ name: "", cuisine: "", area: "", walk: 10, price: 2, by: memberName ? memberName.slice(0, 2).toUpperCase() : "", notes: "" });
+  }, [open, memberName]);
 
   if (!open) return null;
   const valid = form.name.trim() && form.cuisine.trim() && form.area.trim();
@@ -41,7 +44,7 @@ export function AddModal({
       lastVisited: "never",
       cooldown: 999,
       by: form.by,
-      byName: TEAM.find((m) => m.initials === form.by)?.name ?? form.by,
+      byName: memberName || TEAM.find((m) => m.initials === form.by)?.name || form.by,
       notes: form.notes.trim() || "no notes yet \u2014 first try is on you.",
       tags: [],
     });
@@ -194,32 +197,39 @@ export function AddModal({
           </Field>
 
           <Field label="Who's suggesting?">
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {TEAM.map((m) => {
-                const on = form.by === m.initials;
-                return (
-                  <button key={m.initials} type="button"
-                    onClick={() => setForm((f) => ({ ...f, by: m.initials }))}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "4px 12px 4px 4px",
-                      border: `2.5px solid ${INK}`,
-                      background: on ? ACCENT : CREAM,
-                      color: on ? CREAM : INK,
-                      borderRadius: 999,
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      boxShadow: on ? `3px 3px 0 ${INK}` : "none",
-                    }}>
-                    <Initials size={24} accent={on}>{m.initials}</Initials>
-                    {m.name}
-                  </button>
-                );
-              })}
-            </div>
+            {memberName ? (
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <Initials size={28} accent>{memberName.slice(0, 2).toUpperCase()}</Initials>
+                <span style={{ fontSize: 14, fontWeight: 600 }}>{memberName}</span>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {TEAM.map((m) => {
+                  const on = form.by === m.initials;
+                  return (
+                    <button key={m.initials} type="button"
+                      onClick={() => setForm((f) => ({ ...f, by: m.initials }))}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "4px 12px 4px 4px",
+                        border: `2.5px solid ${INK}`,
+                        background: on ? ACCENT : CREAM,
+                        color: on ? CREAM : INK,
+                        borderRadius: 999,
+                        cursor: "pointer",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        boxShadow: on ? `3px 3px 0 ${INK}` : "none",
+                      }}>
+                      <Initials size={24} accent={on}>{m.initials}</Initials>
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </Field>
         </div>
 

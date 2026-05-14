@@ -19,6 +19,30 @@ export interface Spot {
   fromDb?: boolean;
 }
 
+export interface RoomMember {
+  id: string;
+  name: string;
+  joinedAt: number;
+}
+
+export interface RoomSpin {
+  active: boolean;
+  seed: number;
+  triggeredBy: string;
+  result: Spot[] | null;
+}
+
+export interface RoomState {
+  code: string;
+  createdAt: number;
+  hostId: string;
+  members: RoomMember[];
+  spots: Spot[];
+  /** spotId -> array of memberIds who voted */
+  votes: Record<string, string[]>;
+  spin: RoomSpin | null;
+}
+
 export interface Filters {
   cuisine: string;
   maxWalk: number;
