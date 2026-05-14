@@ -68,6 +68,7 @@ function nearbyToSpot(r: NearbyRestaurant): Spot {
     fromDb: true,
   };
 }
+import Link from "next/link";
 import { ChunkyBtn } from "./ui";
 import { SpotCard } from "./SpotCard";
 import { AddModal } from "./AddModal";
@@ -134,7 +135,7 @@ function BigStat({ value, label, color, rot }: { value: number; label: string; c
   );
 }
 
-function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: () => void; spotCount: number; votedCount: number; wobble: boolean; geoStatus: "pending" | "granted" | "denied" }) {
+function Masthead({ spotCount, votedCount, wobble, geoStatus }: { spotCount: number; votedCount: number; wobble: boolean; geoStatus: "pending" | "granted" | "denied" }) {
   return (
     <header
       style={{
@@ -223,20 +224,22 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
           <BigStat value={spotCount} label="on the wall" color="#FFE89B" rot={-3} />
           <BigStat value={votedCount} label="you voted" color="#D6CCFF" rot={3} />
         </div>
-        <ChunkyBtn onClick={onAdd} size="lg" color={ACCENT} fg={CREAM}>
-          <span style={{
-            display: "inline-flex",
-            width: 26, height: 26,
-            background: CREAM,
-            color: ACCENT,
-            border: `2.5px solid ${INK}`,
-            borderRadius: 999,
-            alignItems: "center", justifyContent: "center",
-            fontSize: 18, fontWeight: 700, lineHeight: 1,
-            marginRight: 4,
-          }}>+</span>
-          Suggest a spot
-        </ChunkyBtn>
+        <Link href="/room" style={{ textDecoration: "none" }}>
+          <ChunkyBtn size="lg" color={ACCENT} fg={CREAM}>
+            <span style={{
+              display: "inline-flex",
+              width: 26, height: 26,
+              background: CREAM,
+              color: ACCENT,
+              border: `2.5px solid ${INK}`,
+              borderRadius: 999,
+              alignItems: "center", justifyContent: "center",
+              fontSize: 16, fontWeight: 700, lineHeight: 1,
+              marginRight: 4,
+            }}>&#x21C4;</span>
+            Create a room
+          </ChunkyBtn>
+        </Link>
       </div>
     </header>
   );
@@ -798,7 +801,6 @@ export default function LunchApp() {
   return (
     <div style={{ minHeight: "100vh", color: INK }}>
       <Masthead
-        onAdd={() => setModalOpen(true)}
         spotCount={spots.length}
         votedCount={voted.size}
         wobble={wobble}
