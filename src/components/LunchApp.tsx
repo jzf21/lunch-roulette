@@ -161,6 +161,7 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
             color: INK,
             opacity: 0.65,
             marginBottom: 8,
+            padding: "0.1rem 0rem 0rem",
           }}
         >
           <span style={{ width: 10, height: 10, background: geoStatus === "granted" ? "#4CAF50" : ACCENT, borderRadius: 999, border: `2px solid ${INK}` }} />
@@ -178,6 +179,7 @@ function Masthead({ onAdd, spotCount, votedCount, wobble, geoStatus }: { onAdd: 
             animation: wobble ? "none" : "none",
             transformOrigin: "left bottom",
             display: "inline-block",
+            padding: "0.25em 0em",
           }}
         >
           What&apos;s for
