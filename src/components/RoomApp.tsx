@@ -3,13 +3,66 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { INK, ACCENT, CREAM, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "@/lib/constants";
-import { Spot, RoomState, RoomMember } from "@/lib/types";
+import { Spot, RoomState, RoomMember, NearbyRestaurant } from "@/lib/types";
 import { pickByVote, pickBySpin, pickByFilter } from "@/lib/pickers";
-import { ChunkyBtn } from "./ui";
+import { ChunkyBtn, Pill } from "./ui";
 import { SpotCard } from "./SpotCard";
 import { AddModal } from "./AddModal";
 import { SpinOverlay } from "./SpinOverlay";
 import { RoomBar } from "./RoomBar";
+import { glyphFor, FOOT } from "./Glyphs";
+
+// ── Location hook ───────────────────────────────────────────────────────
+const FALLBACK_LAT = 9.9816;
+const FALLBACK_LNG = 76.2999;
+
+function useUserLocation() {
+  const [location, setLocation] = React.useState({ lat: FALLBACK_LAT, lng: FALLBACK_LNG });
+  const [status, setStatus] = React.useState<"pending" | "granted" | "denied">("pending");
+
+  React.useEffect(() => {
+    if (!navigator.geolocation) { setStatus("denied"); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setStatus("granted"); },
+      () => { setStatus("denied"); },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 },
+    );
+  }, []);
+
+  return { location, status };
+}
+
+function nearbyToSpot(r: NearbyRestaurant): Spot {
+  const walkMin = Math.max(1, Math.round(r.distance_m / 80));
+  return {
+    id: `osm-${r.osm_id}`,
+    name: r.name,
+    cuisine: r.cuisine.length > 0 ? r.cuisine : [r.amenity_type],
+    area: r.addr_street || `${(r.distance_m / 1000).toFixed(1)} km away`,
+    walk: walkMin,
+    price: 2,
+    votes: 0,
+    lastVisited: "never",
+    cooldown: 999,
+    by: "OSM",
+    byName: "OpenStreetMap",
+    notes: [
+      r.opening_hours && `Hours: ${r.opening_hours}`,
+      r.phone && `Phone: ${r.phone}`,
+      r.outdoor_seating && "Has outdoor seating",
+      r.delivery && "Offers delivery",
+      r.takeaway && "Takeaway available",
+    ].filter(Boolean).join(" \u00b7 ") || "Discovered nearby \u2014 no notes yet.",
+    tags: [
+      r.amenity_type,
+      ...(r.outdoor_seating ? ["outdoor"] : []),
+      ...(r.delivery ? ["delivery"] : []),
+    ],
+    veg: r.is_veg_only === 1,
+    distanceM: r.distance_m,
+    fromDb: true,
+  };
+}
 
 // ── SSE Hook ────────────────────────────────────────────────────────────
 function useRoomSSE(code: string) {
@@ -122,6 +175,311 @@ function SectionHead({ count }: { count: number }) {
   );
 }
 
+// ── Nearby Side Panel ───────────────────────────────────────────────────
+function NearbySidePanel({
+  open,
+  onClose,
+  onAddSpot,
+  addedIds,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onAddSpot: (spot: Spot) => void;
+  addedIds: Set<string>;
+}) {
+  const { location, status: geoStatus } = useUserLocation();
+  const [nearby, setNearby] = React.useState<Spot[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [radius, setRadius] = React.useState(5);
+  const [cuisine, setCuisine] = React.useState("");
+  const [debouncedCuisine, setDebouncedCuisine] = React.useState("");
+
+  React.useEffect(() => {
+    const id = setTimeout(() => setDebouncedCuisine(cuisine), 350);
+    return () => clearTimeout(id);
+  }, [cuisine]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    const controller = new AbortController();
+    setLoading(true);
+
+    const params = new URLSearchParams({
+      lat: String(location.lat),
+      lng: String(location.lng),
+      radius: String(radius),
+      limit: "50",
+    });
+    if (debouncedCuisine) params.set("cuisine", debouncedCuisine);
+
+    fetch(`/api/restaurants?${params}`, { signal: controller.signal })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.restaurants) setNearby(data.restaurants.map(nearbyToSpot));
+      })
+      .catch((err) => { if (err.name !== "AbortError") console.error(err); })
+      .finally(() => setLoading(false));
+
+    return () => controller.abort();
+  }, [open, location.lat, location.lng, radius, debouncedCuisine]);
+
+  return (
+    <>
+      {/* Backdrop */}
+      {open && (
+        <div
+          onClick={onClose}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(26,20,16,0.35)",
+            zIndex: 80,
+            backdropFilter: "blur(2px)",
+          }}
+        />
+      )}
+
+      {/* Panel */}
+      <div
+        style={{
+          position: "fixed",
+          top: 0,
+          right: 0,
+          bottom: 0,
+          width: "min(420px, 92vw)",
+          background: CREAM,
+          borderLeft: `3px solid ${INK}`,
+          boxShadow: open ? `-12px 0 0 ${INK}` : "none",
+          zIndex: 85,
+          transform: open ? "translateX(0)" : "translateX(100%)",
+          transition: "transform 0.25s cubic-bezier(.3,.9,.3,1)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        {/* Panel header */}
+        <div style={{
+          padding: "20px 22px 16px",
+          borderBottom: `2.5px dashed ${INK}`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          flexShrink: 0,
+        }}>
+          <div>
+            <div style={{
+              fontFamily: FONT_MONO,
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
+              opacity: 0.6,
+            }}>
+              {geoStatus === "granted" ? "\u25C9 Your location" : "\u25C9 Kochi office"}
+            </div>
+            <div style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 26,
+              lineHeight: 1,
+              marginTop: 4,
+            }}>
+              Nearby spots
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              appearance: "none",
+              width: 36, height: 36,
+              border: `2.5px solid ${INK}`,
+              background: CREAM,
+              borderRadius: 999,
+              fontSize: 16,
+              cursor: "pointer",
+              boxShadow: `3px 3px 0 ${INK}`,
+              lineHeight: 1,
+            }}
+          >
+            &#10005;
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div style={{
+          padding: "14px 22px",
+          borderBottom: `2px solid rgba(26,20,16,0.1)`,
+          display: "flex",
+          gap: 14,
+          alignItems: "flex-end",
+          flexShrink: 0,
+        }}>
+          <div style={{ flex: 1 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+              textTransform: "uppercase", color: INK, opacity: 0.6,
+            }}>Radius</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+              <input
+                type="range" min={1} max={15} value={radius}
+                onChange={(e) => setRadius(Number(e.target.value))}
+                style={{ flex: 1, accentColor: ACCENT }}
+              />
+              <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 700, minWidth: 40 }}>
+                {radius} km
+              </span>
+            </div>
+          </div>
+          <div style={{ width: 110 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+              textTransform: "uppercase", color: INK, opacity: 0.6,
+            }}>Cuisine</span>
+            <input
+              type="text" value={cuisine} onChange={(e) => setCuisine(e.target.value)}
+              placeholder="any"
+              style={{
+                marginTop: 4, width: "100%", padding: "6px 8px",
+                border: `2px solid ${INK}`, background: CREAM,
+                fontSize: 11, fontWeight: 600, fontFamily: "inherit", color: INK,
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Results */}
+        <div style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "10px 0",
+        }}>
+          {loading && (
+            <div style={{
+              padding: 24, textAlign: "center",
+              fontFamily: FONT_MONO, fontSize: 12,
+              letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.5,
+            }}>
+              Loading...
+            </div>
+          )}
+
+          {!loading && nearby.length === 0 && (
+            <div style={{
+              padding: 24, textAlign: "center",
+              fontFamily: FONT_DISPLAY, fontSize: 20, opacity: 0.4,
+            }}>
+              No restaurants found nearby
+            </div>
+          )}
+
+          {nearby.map((spot) => {
+            const alreadyAdded = addedIds.has(spot.id);
+            return (
+              <div
+                key={spot.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "12px 22px",
+                  borderBottom: `1.5px solid rgba(26,20,16,0.08)`,
+                  opacity: alreadyAdded ? 0.45 : 1,
+                }}
+              >
+                {/* Cuisine glyph */}
+                <div style={{
+                  width: 38, height: 38, flexShrink: 0,
+                  background: "#FFFAEC",
+                  border: `2px solid ${INK}`,
+                  borderRadius: 999,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <span style={{ width: 22, height: 22, display: "block" }}>{glyphFor(spot.cuisine)}</span>
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontWeight: 700, fontSize: 14, color: INK,
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  }}>
+                    {spot.name}
+                  </div>
+                  <div style={{
+                    display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap",
+                  }}>
+                    <span style={{
+                      fontSize: 10, fontWeight: 600, color: INK, opacity: 0.55,
+                      display: "inline-flex", alignItems: "center", gap: 3,
+                    }}>
+                      <span style={{ width: 10, height: 10, display: "inline-block" }}>{FOOT}</span>
+                      {spot.walk} min
+                    </span>
+                    {spot.distanceM != null && (
+                      <span style={{ fontSize: 10, fontWeight: 600, color: INK, opacity: 0.55 }}>
+                        {spot.distanceM >= 1000
+                          ? `${(spot.distanceM / 1000).toFixed(1)} km`
+                          : `${Math.round(spot.distanceM)} m`}
+                      </span>
+                    )}
+                    {spot.cuisine.slice(0, 2).map((c) => (
+                      <Pill key={c} sm>{c}</Pill>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Add button */}
+                <button
+                  type="button"
+                  disabled={alreadyAdded}
+                  onClick={() => onAddSpot(spot)}
+                  style={{
+                    appearance: "none",
+                    width: 36, height: 36,
+                    border: `2.5px solid ${INK}`,
+                    background: alreadyAdded ? "rgba(26,20,16,0.08)" : ACCENT,
+                    color: alreadyAdded ? "rgba(26,20,16,0.3)" : CREAM,
+                    borderRadius: 999,
+                    fontSize: 20,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    cursor: alreadyAdded ? "default" : "pointer",
+                    boxShadow: alreadyAdded ? "none" : `3px 3px 0 ${INK}`,
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {alreadyAdded ? "\u2713" : "+"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Panel footer */}
+        <div style={{
+          padding: "12px 22px",
+          borderTop: `2.5px dashed ${INK}`,
+          fontFamily: FONT_MONO,
+          fontSize: 10,
+          letterSpacing: "0.1em",
+          textTransform: "uppercase",
+          opacity: 0.5,
+          textAlign: "center",
+          flexShrink: 0,
+        }}>
+          {nearby.length} restaurants &middot; tap + to add to room
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main Room App ───────────────────────────────────────────────────────
 export default function RoomApp({ code }: { code: string }) {
   const router = useRouter();
@@ -156,6 +514,7 @@ export default function RoomApp({ code }: { code: string }) {
   }, [identity, connected, room, code]);
 
   const [modalOpen, setModalOpen] = React.useState(false);
+  const [nearbyOpen, setNearbyOpen] = React.useState(false);
   const [isSpinning, setIsSpinning] = React.useState(false);
   const [spinKey, setSpinKey] = React.useState(0);
 
@@ -369,6 +728,20 @@ export default function RoomApp({ code }: { code: string }) {
             Add a spot
           </ChunkyBtn>
           <ChunkyBtn
+            onClick={() => setNearbyOpen(true)}
+            size="lg"
+            color="#B7E4FF"
+            fg={INK}
+          >
+            <span style={{
+              fontFamily: FONT_DISPLAY,
+              fontSize: 20,
+              lineHeight: 1,
+              marginRight: 4,
+            }}>&#9673;</span>
+            Nearby
+          </ChunkyBtn>
+          <ChunkyBtn
             onClick={onSpin}
             size="lg"
             color="#FFCDE0"
@@ -490,6 +863,13 @@ export default function RoomApp({ code }: { code: string }) {
         onClose={() => setModalOpen(false)}
         onAdd={onAdd}
         memberName={identity.name}
+      />
+
+      <NearbySidePanel
+        open={nearbyOpen}
+        onClose={() => setNearbyOpen(false)}
+        onAddSpot={onAdd}
+        addedIds={new Set(spots.map((s) => s.id))}
       />
 
       {isSpinning && room.spin?.result && (
