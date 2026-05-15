@@ -187,7 +187,42 @@ function NearbySidePanel({
   onAddSpot: (spot: Spot) => void;
   addedIds: Set<string>;
 }) {
-  const { location, status: geoStatus } = useUserLocation();
+  const { location: browserLocation, status: geoStatus } = useUserLocation();
+  const [customLocation, setCustomLocation] = React.useState<{ lat: number; lng: number; label: string } | null>(null);
+  const [locationQuery, setLocationQuery] = React.useState("");
+  const [searching, setSearching] = React.useState(false);
+
+  const location = customLocation ?? browserLocation;
+  const locationLabel = customLocation
+    ? customLocation.label
+    : geoStatus === "granted"
+      ? "Your location"
+      : "Kochi office";
+
+  const handleLocationSearch = async () => {
+    const q = locationQuery.trim();
+    if (!q) return;
+    setSearching(true);
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
+      );
+      const results = await res.json();
+      if (results.length > 0) {
+        setCustomLocation({
+          lat: parseFloat(results[0].lat),
+          lng: parseFloat(results[0].lon),
+          label: results[0].display_name.split(",").slice(0, 2).join(","),
+        });
+        setLocationQuery("");
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const [nearby, setNearby] = React.useState<Spot[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [radius, setRadius] = React.useState(5);
@@ -277,7 +312,7 @@ function NearbySidePanel({
               textTransform: "uppercase",
               opacity: 0.6,
             }}>
-              {geoStatus === "granted" ? "\u25C9 Your location" : "\u25C9 Kochi office"}
+              &#9673; {locationLabel}
             </div>
             <div style={{
               fontFamily: FONT_DISPLAY,
@@ -306,6 +341,72 @@ function NearbySidePanel({
           >
             &#10005;
           </button>
+        </div>
+
+        {/* Location picker */}
+        <div style={{
+          padding: "12px 22px",
+          borderBottom: `2px solid rgba(26,20,16,0.1)`,
+          flexShrink: 0,
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: "0.08em",
+            textTransform: "uppercase", color: INK, opacity: 0.6,
+          }}>Search a location</span>
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <input
+              type="text"
+              value={locationQuery}
+              onChange={(e) => setLocationQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLocationSearch()}
+              placeholder="e.g. Indiranagar, Bangalore"
+              style={{
+                flex: 1, padding: "7px 10px",
+                border: `2px solid ${INK}`, background: CREAM,
+                fontSize: 12, fontWeight: 600, fontFamily: "inherit", color: INK,
+              }}
+            />
+            <button
+              type="button"
+              onClick={handleLocationSearch}
+              disabled={searching || !locationQuery.trim()}
+              style={{
+                appearance: "none",
+                padding: "6px 14px",
+                border: `2px solid ${INK}`,
+                background: locationQuery.trim() ? ACCENT : "rgba(26,20,16,0.1)",
+                color: locationQuery.trim() ? CREAM : "rgba(26,20,16,0.35)",
+                fontSize: 11, fontWeight: 700,
+                letterSpacing: "0.04em",
+                textTransform: "uppercase",
+                cursor: locationQuery.trim() ? "pointer" : "default",
+                boxShadow: locationQuery.trim() ? `2px 2px 0 ${INK}` : "none",
+              }}
+            >
+              {searching ? "..." : "Go"}
+            </button>
+          </div>
+          {customLocation && (
+            <button
+              type="button"
+              onClick={() => setCustomLocation(null)}
+              style={{
+                appearance: "none",
+                marginTop: 6,
+                padding: "3px 10px",
+                border: `1.5px solid ${INK}`,
+                background: "transparent",
+                borderRadius: 999,
+                fontSize: 10, fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                color: INK, opacity: 0.6,
+                cursor: "pointer",
+              }}
+            >
+              &#10005; Reset to {geoStatus === "granted" ? "my location" : "default"}
+            </button>
+          )}
         </div>
 
         {/* Filters */}
