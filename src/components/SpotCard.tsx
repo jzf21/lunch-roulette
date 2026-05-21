@@ -3,7 +3,7 @@
 import React from "react";
 import { INK, ACCENT, CREAM, SURFACE, FONT_DISPLAY, tiltFor, bgFor } from "@/lib/constants";
 import { Spot } from "@/lib/types";
-import { glyphFor, FOOT, SPARKLE } from "./Glyphs";
+import { glyphFor, FOOT, SPARKLE, COMPASS } from "./Glyphs";
 import { Pill, Initials, CooldownPill, VoteButton } from "./ui";
 
 export function SpotCard({
@@ -14,6 +14,7 @@ export function SpotCard({
   voted,
   idx,
   layout,
+  onShowMap,
 }: {
   spot: Spot;
   rank: number;
@@ -22,6 +23,7 @@ export function SpotCard({
   voted: boolean;
   idx: number;
   layout: string;
+  onShowMap?: (spot: Spot) => void;
 }) {
   const tilt = layout === "list" ? 0 : tiltFor(spot.id);
   const bg = bgFor(spot.id, idx);
@@ -201,7 +203,7 @@ export function SpotCard({
         <CooldownPill days={spot.cooldown} lastVisited={spot.lastVisited} />
       </div>
 
-      {/* Footer: voter avatar + vote button */}
+      {/* Footer: voter avatar + map + vote button */}
       <div
         style={{
           display: "flex",
@@ -216,7 +218,34 @@ export function SpotCard({
             by {spot.byName}
           </span>
         </div>
-        <VoteButton voted={voted} count={spot.votes} onClick={() => onVote(spot.id)} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {spot.lat != null && spot.lng != null && onShowMap && (
+            <button
+              type="button"
+              onClick={() => onShowMap(spot)}
+              title="Show on map"
+              style={{
+                appearance: "none",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 32,
+                height: 32,
+                border: `2px solid ${INK}`,
+                background: "#B7E4FF",
+                color: INK,
+                borderRadius: 999,
+                fontSize: 16,
+                boxShadow: `2px 2px 0 ${INK}`,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              <span style={{ width: 16, height: 16, display: "block" }}>{COMPASS}</span>
+            </button>
+          )}
+          <VoteButton voted={voted} count={spot.votes} onClick={() => onVote(spot.id)} />
+        </div>
       </div>
     </article>
   );

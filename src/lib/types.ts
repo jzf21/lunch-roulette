@@ -17,6 +17,10 @@ export interface Spot {
   distanceM?: number;
   /** Whether this spot came from the live DB */
   fromDb?: boolean;
+  /** Latitude for map display */
+  lat?: number;
+  /** Longitude for map display */
+  lng?: number;
 }
 
 export interface RoomMember {

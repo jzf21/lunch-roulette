@@ -129,3 +129,10 @@ export const STAR = (
     <path d="M12 2l2.9 7H22l-6 4.4 2.3 7L12 16l-6.3 4.4 2.3-7L2 9h7.1z" />
   </svg>
 );
+
+export const COMPASS = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="10" />
+    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88" fill="currentColor" stroke="none" />
+  </svg>
+);

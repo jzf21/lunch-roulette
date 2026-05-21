@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { INK, ACCENT, CREAM, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "@/lib/constants";
 import { Spot, RoomState, RoomMember, NearbyRestaurant } from "@/lib/types";
@@ -10,7 +11,9 @@ import { SpotCard } from "./SpotCard";
 import { AddModal } from "./AddModal";
 import { SpinOverlay } from "./SpinOverlay";
 import { RoomBar } from "./RoomBar";
-import { glyphFor, FOOT } from "./Glyphs";
+
+const SpotMap = dynamic(() => import("./SpotMap"), { ssr: false });
+import { glyphFor, FOOT, COMPASS } from "./Glyphs";
 
 // ── Location hook ───────────────────────────────────────────────────────
 const FALLBACK_LAT = 9.9816;
@@ -61,6 +64,8 @@ function nearbyToSpot(r: NearbyRestaurant): Spot {
     veg: r.is_veg_only === 1,
     distanceM: r.distance_m,
     fromDb: true,
+    lat: r.lat,
+    lng: r.lng,
   };
 }
 
@@ -181,11 +186,13 @@ function NearbySidePanel({
   onClose,
   onAddSpot,
   addedIds,
+  onShowMap,
 }: {
   open: boolean;
   onClose: () => void;
   onAddSpot: (spot: Spot) => void;
   addedIds: Set<string>;
+  onShowMap: (spots: Spot[]) => void;
 }) {
   const { location: browserLocation, status: geoStatus } = useUserLocation();
   const [customLocation, setCustomLocation] = React.useState<{ lat: number; lng: number; label: string } | null>(null);
@@ -532,31 +539,57 @@ function NearbySidePanel({
                   </div>
                 </div>
 
-                {/* Add button */}
-                <button
-                  type="button"
-                  disabled={alreadyAdded}
-                  onClick={() => onAddSpot(spot)}
-                  style={{
-                    appearance: "none",
-                    width: 36, height: 36,
-                    border: `2.5px solid ${INK}`,
-                    background: alreadyAdded ? "rgba(26,20,16,0.08)" : ACCENT,
-                    color: alreadyAdded ? "rgba(26,20,16,0.3)" : CREAM,
-                    borderRadius: 999,
-                    fontSize: 20,
-                    fontWeight: 700,
-                    lineHeight: 1,
-                    cursor: alreadyAdded ? "default" : "pointer",
-                    boxShadow: alreadyAdded ? "none" : `3px 3px 0 ${INK}`,
-                    flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {alreadyAdded ? "\u2713" : "+"}
-                </button>
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  {spot.lat != null && spot.lng != null && (
+                    <button
+                      type="button"
+                      onClick={() => onShowMap([spot])}
+                      style={{
+                        appearance: "none",
+                        width: 36, height: 36,
+                        border: `2.5px solid ${INK}`,
+                        background: "#B7E4FF",
+                        color: INK,
+                        borderRadius: 999,
+                        fontSize: 16,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        cursor: "pointer",
+                        boxShadow: `3px 3px 0 ${INK}`,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      title="Show on map"
+                    >
+                      <span style={{ width: 18, height: 18, display: "block" }}>{COMPASS}</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={alreadyAdded}
+                    onClick={() => onAddSpot(spot)}
+                    style={{
+                      appearance: "none",
+                      width: 36, height: 36,
+                      border: `2.5px solid ${INK}`,
+                      background: alreadyAdded ? "rgba(26,20,16,0.08)" : ACCENT,
+                      color: alreadyAdded ? "rgba(26,20,16,0.3)" : CREAM,
+                      borderRadius: 999,
+                      fontSize: 20,
+                      fontWeight: 700,
+                      lineHeight: 1,
+                      cursor: alreadyAdded ? "default" : "pointer",
+                      boxShadow: alreadyAdded ? "none" : `3px 3px 0 ${INK}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {alreadyAdded ? "\u2713" : "+"}
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -566,15 +599,46 @@ function NearbySidePanel({
         <div style={{
           padding: "12px 22px",
           borderTop: `2.5px dashed ${INK}`,
-          fontFamily: FONT_MONO,
-          fontSize: 10,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          opacity: 0.5,
-          textAlign: "center",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
           flexShrink: 0,
         }}>
-          {nearby.length} restaurants &middot; tap + to add to room
+          <span style={{
+            fontFamily: FONT_MONO,
+            fontSize: 10,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            opacity: 0.5,
+          }}>
+            {nearby.length} restaurants
+          </span>
+          {nearby.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onShowMap(nearby)}
+              style={{
+                appearance: "none",
+                padding: "4px 12px",
+                border: `2px solid ${INK}`,
+                background: "#B7E4FF",
+                color: INK,
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                cursor: "pointer",
+                boxShadow: `2px 2px 0 ${INK}`,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span style={{ width: 14, height: 14, display: "inline-block" }}>{COMPASS}</span>
+              View all on map
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -616,6 +680,8 @@ export default function RoomApp({ code }: { code: string }) {
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [nearbyOpen, setNearbyOpen] = React.useState(false);
+  const [mapOpen, setMapOpen] = React.useState(false);
+  const [mapSpots, setMapSpots] = React.useState<Spot[]>([]);
   const [isSpinning, setIsSpinning] = React.useState(false);
   const [spinKey, setSpinKey] = React.useState(0);
 
@@ -829,6 +895,21 @@ export default function RoomApp({ code }: { code: string }) {
             Add a spot
           </ChunkyBtn>
           <ChunkyBtn
+            onClick={() => { setMapSpots(spots); setMapOpen(true); }}
+            size="lg"
+            color="#B7E4FF"
+            fg={INK}
+            style={{ cursor: spots.some(s => s.lat != null) ? "pointer" : "not-allowed" }}
+          >
+            <span style={{
+              width: 20,
+              height: 20,
+              display: "inline-block",
+              marginRight: 4,
+            }}>{COMPASS}</span>
+            Map
+          </ChunkyBtn>
+          <ChunkyBtn
             onClick={() => setNearbyOpen(true)}
             size="lg"
             color="#B7E4FF"
@@ -939,6 +1020,7 @@ export default function RoomApp({ code }: { code: string }) {
             voted={myVotes.has(s.id)}
             idx={i}
             layout="grid"
+            onShowMap={(spot) => { setMapSpots([spot]); setMapOpen(true); }}
           />
         ))}
       </div>
@@ -971,7 +1053,15 @@ export default function RoomApp({ code }: { code: string }) {
         onClose={() => setNearbyOpen(false)}
         onAddSpot={onAdd}
         addedIds={new Set(spots.map((s) => s.id))}
+        onShowMap={(mapSpots) => { setMapSpots(mapSpots); setMapOpen(true); }}
       />
+
+      {mapOpen && (
+        <SpotMap
+          spots={mapSpots}
+          onClose={() => setMapOpen(false)}
+        />
+      )}
 
       {isSpinning && room.spin?.result && (
         <SpinOverlay

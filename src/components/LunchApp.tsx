@@ -66,6 +66,8 @@ function nearbyToSpot(r: NearbyRestaurant): Spot {
     veg: r.is_veg_only === 1,
     distanceM: r.distance_m,
     fromDb: true,
+    lat: r.lat,
+    lng: r.lng,
   };
 }
 import Link from "next/link";
