@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import { Spot } from "@/lib/types";
 import { INK, ACCENT, FONT_DISPLAY, FONT_MONO } from "@/lib/constants";
 import { COMPASS } from "./Glyphs";
+import { directionsUrl, formatDistance } from "@/lib/spots";
 
 // Fix default marker icons (leaflet's asset path breaks in bundlers)
 const defaultIcon = L.icon({
@@ -185,12 +186,23 @@ export default function SpotMap({
                       {spot.votes} vote{spot.votes !== 1 ? "s" : ""}
                       {spot.distanceM != null && (
                         <span style={{ color: "#666", fontWeight: 500, marginLeft: 6 }}>
-                          {spot.distanceM >= 1000
-                            ? `${(spot.distanceM / 1000).toFixed(1)} km`
-                            : `${Math.round(spot.distanceM)} m`}
+                          {formatDistance(spot.distanceM)}
                         </span>
                       )}
                     </div>
+                    {spot.openStatus && spot.openStatus !== "unknown" && (
+                      <div style={{ fontSize: 11, marginTop: 2 }}>
+                        {spot.openStatus === "open" ? "Open" : "Closed"} {spot.openLabel}
+                      </div>
+                    )}
+                    <a
+                      href={directionsUrl(spot) ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "inline-block", marginTop: 6, fontSize: 12, fontWeight: 700, color: INK }}
+                    >
+                      Directions &rarr;
+                    </a>
                   </div>
                 </Popup>
               </Marker>

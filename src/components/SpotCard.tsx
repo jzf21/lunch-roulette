@@ -5,6 +5,45 @@ import { INK, ACCENT, CREAM, SURFACE, FONT_DISPLAY, tiltFor, bgFor } from "@/lib
 import { Spot } from "@/lib/types";
 import { glyphFor, FOOT, SPARKLE, COMPASS } from "./Glyphs";
 import { Pill, Initials, CooldownPill, VoteButton } from "./ui";
+import { directionsUrl, formatDistance } from "@/lib/spots";
+
+const OPEN_COLORS = { open: "#C8E7C0", closed: "#FFCDE0" } as const;
+
+function OpenPill({ spot }: { spot: Spot }) {
+  if (!spot.openStatus || spot.openStatus === "unknown") return null;
+  return (
+    <Pill sm color={OPEN_COLORS[spot.openStatus]}>
+      <span style={{
+        width: 7, height: 7, borderRadius: 999,
+        background: spot.openStatus === "open" ? "#2E7D32" : ACCENT,
+        border: `1.5px solid ${INK}`,
+      }} />
+      {spot.openStatus === "open" ? "Open" : "Closed"}
+      {spot.openLabel && <span style={{ opacity: 0.7, fontWeight: 500 }}>&middot; {spot.openLabel}</span>}
+    </Pill>
+  );
+}
+
+const actionBtn: React.CSSProperties = {
+  appearance: "none",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 5,
+  height: 30,
+  padding: "0 10px",
+  border: `2px solid ${INK}`,
+  background: SURFACE,
+  color: INK,
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: "0.03em",
+  textTransform: "uppercase",
+  textDecoration: "none",
+  boxShadow: `2px 2px 0 ${INK}`,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+};
 
 export function SpotCard({
   spot,
@@ -15,6 +54,7 @@ export function SpotCard({
   idx,
   layout,
   onShowMap,
+  onLogVisit,
 }: {
   spot: Spot;
   rank: number;
@@ -24,7 +64,9 @@ export function SpotCard({
   idx: number;
   layout: string;
   onShowMap?: (spot: Spot) => void;
+  onLogVisit?: (spot: Spot) => void;
 }) {
+  const directions = directionsUrl(spot);
   const tilt = layout === "list" ? 0 : tiltFor(spot.id);
   const bg = bgFor(spot.id, idx);
 
@@ -154,9 +196,11 @@ export function SpotCard({
         </div>
       </div>
 
-      {/* Cuisine tags */}
+      {/* Cuisine tags + open state */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-        {spot.cuisine.map((c) => <Pill key={c} sm>{c}</Pill>)}
+        <OpenPill spot={spot} />
+        {spot.cuisine.slice(0, 4).map((c) => <Pill key={c} sm>{c}</Pill>)}
+        {spot.veg && <Pill sm color="#C8E7C0">Pure veg</Pill>}
       </div>
 
       {/* Notes */}
@@ -190,18 +234,47 @@ export function SpotCard({
           {spot.walk} min
           {spot.distanceM != null && (
             <span style={{ opacity: 0.6, marginLeft: 2 }}>
-              ({spot.distanceM >= 1000
-                ? `${(spot.distanceM / 1000).toFixed(1)} km`
-                : `${Math.round(spot.distanceM)} m`})
+              ({formatDistance(spot.distanceM)})
             </span>
           )}
         </Pill>
-        <Pill sm color={SURFACE}>
-          {"\u20B9".repeat(spot.price)}
-          <span style={{ opacity: 0.25 }}>{"\u20B9".repeat(3 - spot.price)}</span>
-        </Pill>
+        {spot.price > 0 && (
+          <Pill sm color={SURFACE}>
+            {"\u20B9".repeat(spot.price)}
+            <span style={{ opacity: 0.25 }}>{"\u20B9".repeat(3 - spot.price)}</span>
+          </Pill>
+        )}
+        {!!spot.ratingCount && (
+          <Pill sm color="#FFE89B">
+            <span style={{ color: ACCENT }}>&#9733;</span>
+            {spot.rating?.toFixed(1)}
+            <span style={{ opacity: 0.6, fontWeight: 500 }}>({spot.ratingCount})</span>
+          </Pill>
+        )}
         <CooldownPill days={spot.cooldown} lastVisited={spot.lastVisited} />
       </div>
+
+      {/* Actions: directions / call / we went */}
+      {(directions || spot.phone || onLogVisit) && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {directions && (
+            <a href={directions} target="_blank" rel="noopener noreferrer" style={actionBtn}>
+              <span style={{ width: 12, height: 12, display: "inline-block" }}>{FOOT}</span>
+              Directions
+            </a>
+          )}
+          {spot.phone && (
+            <a href={`tel:${spot.phone.split(/[;,]/)[0].replace(/\s+/g, "")}`} style={actionBtn}>
+              &#9742; Call
+            </a>
+          )}
+          {onLogVisit && (
+            <button type="button" onClick={() => onLogVisit(spot)} style={{ ...actionBtn, background: "#FFE89B" }}>
+              &#10003; We went
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Footer: voter avatar + map + vote button */}
       <div

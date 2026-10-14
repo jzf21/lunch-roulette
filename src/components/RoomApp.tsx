@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { INK, ACCENT, CREAM, FONT_DISPLAY, FONT_MONO, FONT_BODY } from "@/lib/constants";
 import { Spot, RoomState, RoomMember, NearbyRestaurant } from "@/lib/types";
 import { pickByVote, pickBySpin, pickByFilter } from "@/lib/pickers";
+import { restaurantToSpot } from "@/lib/spots";
 import { ChunkyBtn, Pill } from "./ui";
 import { SpotCard } from "./SpotCard";
 import { AddModal } from "./AddModal";
@@ -35,38 +36,9 @@ function useUserLocation() {
   return { location, status };
 }
 
+// Room votes are tracked per room, so drop the global "today" counts
 function nearbyToSpot(r: NearbyRestaurant): Spot {
-  const walkMin = Math.max(1, Math.round(r.distance_m / 80));
-  return {
-    id: `osm-${r.osm_id}`,
-    name: r.name,
-    cuisine: r.cuisine.length > 0 ? r.cuisine : [r.amenity_type],
-    area: r.addr_street || `${(r.distance_m / 1000).toFixed(1)} km away`,
-    walk: walkMin,
-    price: 2,
-    votes: 0,
-    lastVisited: "never",
-    cooldown: 999,
-    by: "OSM",
-    byName: "OpenStreetMap",
-    notes: [
-      r.opening_hours && `Hours: ${r.opening_hours}`,
-      r.phone && `Phone: ${r.phone}`,
-      r.outdoor_seating && "Has outdoor seating",
-      r.delivery && "Offers delivery",
-      r.takeaway && "Takeaway available",
-    ].filter(Boolean).join(" \u00b7 ") || "Discovered nearby \u2014 no notes yet.",
-    tags: [
-      r.amenity_type,
-      ...(r.outdoor_seating ? ["outdoor"] : []),
-      ...(r.delivery ? ["delivery"] : []),
-    ],
-    veg: r.is_veg_only === 1,
-    distanceM: r.distance_m,
-    fromDb: true,
-    lat: r.lat,
-    lng: r.lng,
-  };
+  return { ...restaurantToSpot(r), votes: 0, myVote: false };
 }
 
 // ── SSE Hook ────────────────────────────────────────────────────────────

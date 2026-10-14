@@ -21,6 +21,24 @@ export interface Spot {
   lat?: number;
   /** Longitude for map display */
   lng?: number;
+  /** restaurant / cafe / fast_food / bakery ... */
+  amenityType?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  /** Open state at the time the list was requested for */
+  openStatus?: "open" | "closed" | "unknown";
+  /** e.g. "until 15:30" / "opens Mon 11:00" */
+  openLabel?: string;
+  /** Whether the current viewer voted for this spot today */
+  myVote?: boolean;
+  visitCount?: number;
+  /** Team average rating (1-5); 0 when nobody rated it yet */
+  rating?: number;
+  ratingCount?: number;
+  /** YYYY-MM-DD of the most recent team visit */
+  lastVisitedOn?: string;
+  flags?: { veg: boolean; delivery: boolean; takeaway: boolean; outdoor: boolean; ac: boolean };
 }
 
 export interface RoomMember {
@@ -70,4 +88,31 @@ export interface NearbyRestaurant {
   diet_vegetarian: number;
   is_veg_only: number;
   distance_m: number;
+  air_conditioning?: number;
+  // Computed by /api/restaurants
+  open_status?: "open" | "closed" | "unknown";
+  open_label?: string;
+  votes?: number;
+  my_vote?: number;
+  visit_count?: number;
+  avg_rating?: number;
+  rating_count?: number;
+  /** YYYY-MM-DD, or "" when never visited */
+  last_visited?: string;
+  last_note?: string;
+}
+
+export type SortKey = "distance" | "votes" | "rating" | "due" | "name";
+export type OpenFilter = "any" | "now" | "lunch";
+
+export interface ExploreFilters {
+  q: string;
+  types: string[];
+  veg: boolean;
+  delivery: boolean;
+  takeaway: boolean;
+  outdoor: boolean;
+  ac: boolean;
+  open: OpenFilter;
+  sort: SortKey;
 }

@@ -16,23 +16,54 @@ import { readFileSync } from "fs";
 config({ path: resolve(__dirname, "../.env.local") });
 
 interface OverpassElement {
-  type: string;
+  type: "node" | "way" | "relation";
   id: number;
-  lat: number;
-  lon: number;
+  lat?: number;
+  lon?: number;
+  /** Present for ways/relations when queried with `out center` */
+  center?: { lat: number; lon: number };
   tags?: Record<string, string>;
 }
 
-function normalizeElement(el: OverpassElement) {
+// Node, way and relation ids are separate namespaces in OSM, so offset
+// ways/relations to keep osm_id unique. Stays below the synthetic range
+// (90_000_000_000) used by import-google-restaurants.ts.
+const WAY_OFFSET = 50_000_000_000;
+const RELATION_OFFSET = 60_000_000_000;
+const SYNTHETIC_ID_START = 90_000_000_000;
+
+function osmId(el: OverpassElement): number {
+  if (el.type === "way") return WAY_OFFSET + el.id;
+  if (el.type === "relation") return RELATION_OFFSET + el.id;
+  return el.id;
+}
+
+function amenityType(tags: Record<string, string>): string {
+  if (tags.amenity) return tags.amenity;
+  if (tags.shop) return "bakery"; // bakery / pastry / confectionery
+  return "restaurant";
+}
+
+function street(tags: Record<string, string>): string {
+  const parts = [
+    [tags["addr:housenumber"], tags["addr:street"]].filter(Boolean).join(" "),
+    tags["addr:suburb"] ?? tags["addr:place"],
+  ].filter(Boolean);
+  return parts.join(", ");
+}
+
+function normalizeElement(el: OverpassElement, fetchedAt: string) {
   const tags = el.tags ?? {};
+  const lat = el.lat ?? el.center!.lat;
+  const lng = el.lon ?? el.center!.lon;
   return {
-    osm_id: el.id,
+    osm_id: osmId(el),
     name: tags.name ?? tags["name:en"] ?? "Unnamed",
-    amenity_type: tags.amenity ?? "restaurant",
+    amenity_type: amenityType(tags),
     cuisine: tags.cuisine?.split(";").map((s: string) => s.trim()).filter(Boolean) ?? [],
-    lat: el.lat,
-    lng: el.lon,
-    addr_street: tags["addr:street"] ?? "",
+    lat,
+    lng,
+    addr_street: street(tags),
     addr_city: tags["addr:city"] ?? "",
     addr_postcode: tags["addr:postcode"] ?? "",
     phone: tags.phone ?? tags["contact:phone"] ?? "",
@@ -44,6 +75,8 @@ function normalizeElement(el: OverpassElement) {
     takeaway: tags.takeaway === "yes",
     diet_vegetarian: tags["diet:vegetarian"] === "yes" || tags["diet:vegetarian"] === "only",
     is_veg_only: tags["diet:vegetarian"] === "only",
+    air_conditioning: tags.air_conditioning === "yes",
+    fetched_at: fetchedAt,
   };
 }
 
@@ -55,11 +88,17 @@ async function main() {
   const elements: OverpassElement[] = raw.elements;
   console.log(`Loaded ${elements.length} elements from JSON`);
 
-  // Filter out elements without a name
-  const named = elements.filter((el) => el.tags?.name || el.tags?.["name:en"]);
-  console.log(`${named.length} elements have a name`);
+  // Filter out elements without a name or a location
+  const named = elements.filter(
+    (el) => (el.tags?.name || el.tags?.["name:en"]) && (el.lat != null || el.center)
+  );
+  console.log(`${named.length} elements have a name and location`);
 
-  const rows = named.map(normalizeElement);
+  // ClickHouse DateTime format, from the OSM snapshot time
+  const fetchedAt = (raw.osm3s?.timestamp_osm_base ?? new Date().toISOString())
+    .replace("T", " ")
+    .replace(/(\.\d+)?Z$/, "");
+  const rows = named.map((el) => normalizeElement(el, fetchedAt));
 
   const db = process.env.CLICKHOUSE_DATABASE ?? "default";
 
@@ -102,14 +141,24 @@ async function main() {
         delivery      UInt8,
         takeaway      UInt8,
         diet_vegetarian UInt8,
-        is_veg_only   UInt8
+        is_veg_only   UInt8,
+        air_conditioning UInt8,
+        fetched_at    DateTime
       ) ENGINE = ReplacingMergeTree()
       ORDER BY osm_id
     `,
   });
 
-  // Truncate before re-seeding
-  await client.command({ query: "TRUNCATE TABLE IF EXISTS restaurants" });
+  // Columns added after the table was first created
+  for (const col of ["air_conditioning UInt8", "fetched_at DateTime"]) {
+    await client.command({ query: `ALTER TABLE restaurants ADD COLUMN IF NOT EXISTS ${col}` });
+  }
+
+  // Replace the previous OSM snapshot, keeping Google-imported rows
+  console.log("Removing previous OSM rows...");
+  await client.command({
+    query: `DELETE FROM restaurants WHERE osm_id < ${SYNTHETIC_ID_START}`,
+  });
 
   // Insert in batches
   const BATCH = 200;
